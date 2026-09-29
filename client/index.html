@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DEAD AIR // TACTICAL LOBBY</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+</head>
+<body class="crt-screen lobby-body">
+  <div class="crt-scanlines"></div>
+  <div class="crt-vignette"></div>
+
+  <div class="lobby-container">
+    <!-- Header -->
+    <header class="lobby-header">
+      <div class="game-logo-wrapper">
+        <h1 class="logo-title">DEAD AIR</h1>
+        <div class="logo-subtitle">ASYMMETRICAL 2-PLAYER RADIO SURVIVAL PROTOCOL</div>
+      </div>
+      <div class="server-badge">
+        <span class="status-indicator live-pulse"></span>
+        <span id="lobbyStatus">CONNECTING TO SUB-LEVEL COMM LINK...</span>
+      </div>
+    </header>
+
+    <!-- Main Content Area: Landing View vs Lobby View -->
+    <div id="landingView" class="view-panel">
+      <div class="briefing-box">
+        <div class="briefing-tag">[TRANSMISSION CLASSIFIED // LEVEL 4]</div>
+        <p class="briefing-text">
+          A biological and radiological breach has sealed <strong>Sub-Level 07 (Echo Complex)</strong>.
+          Two operators must work in tandem to override the emergency quarantine terminal before oxygen runs out.
+        </p>
+        <div class="roles-overview">
+          <div class="role-desc-card">
+            <span class="role-icon">📡</span>
+            <div class="role-desc-title">ROLE A: DISPATCHER</div>
+            <p>Sees the complete top-down facility schematic, live agent telemetry, lethal hazard zones, and target terminal. Must guide the agent entirely via radio.</p>
+          </div>
+          <div class="role-desc-card">
+            <span class="role-icon">🔦</span>
+            <div class="role-desc-title">ROLE B: FIELD AGENT</div>
+            <p>Navigates the 3D dark facility in first-person with a flashlight. Blind to the map, objective, and hazards. Hears only the corrupted, delayed radio voice.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Cards -->
+      <div class="action-grid">
+        <!-- Create Room Card -->
+        <div class="action-card">
+          <div class="card-header">HOST NEW OPERATION</div>
+          <p class="card-desc">Generate a secure 4-letter frequency channel and invite your partner operator.</p>
+          <button id="btnCreateRoom" class="btn-terminal-lg btn-full">
+            <span class="btn-glow"></span>
+            CREATE ROOM CHANNEL
+          </button>
+        </div>
+
+        <!-- Join Room Card -->
+        <div class="action-card">
+          <div class="card-header">JOIN FREQUENCY CHANNEL</div>
+          <p class="card-desc">Enter an existing 4-letter mission code to connect as the secondary operator.</p>
+          <form id="joinRoomForm" class="join-form">
+            <input
+              type="text"
+              id="roomCodeInput"
+              class="room-code-input"
+              placeholder="CODE"
+              maxlength="4"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button type="submit" id="btnJoinRoom" class="btn-terminal-lg btn-full">
+              JOIN CHANNEL
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Room / Lobby Staging View -->
+    <div id="stagingView" class="view-panel hidden">
+      <div class="staging-box">
+        <div class="staging-header">
+          <div class="room-info">
+            <span class="room-label">FREQUENCY CHANNEL:</span>
+            <span id="activeRoomCode" class="room-code-large">----</span>
+          </div>
+          <button id="btnCopyInvite" class="btn-terminal-sm">
+            📋 COPY INVITE LINK
+          </button>
+        </div>
+
+        <div class="invite-alert" id="inviteAlert">Link copied to clipboard!</div>
+
+        <!-- Role Assignment Cards -->
+        <div class="staging-roles">
+          <div class="player-slot slot-dispatcher" id="slotDispatcher">
+            <div class="slot-badge">ROLE A</div>
+            <div class="slot-title">TACTICAL DISPATCHER</div>
+            <div class="slot-icon">📡</div>
+            <div class="slot-status" id="dispatcherStatus">WAITING...</div>
+            <div class="slot-details">2D Canvas Radar • Full Schematic • Radio Transmitter</div>
+          </div>
+
+          <div class="swap-divider">
+            <button id="btnSwapRoles" class="btn-swap" title="Swap Roles">
+              ⇄ SWAP ROLES
+            </button>
+          </div>
+
+          <div class="player-slot slot-field" id="slotField">
+            <div class="slot-badge">ROLE B</div>
+            <div class="slot-title">FIELD AGENT</div>
+            <div class="slot-icon">🔦</div>
+            <div class="slot-status" id="fieldStatus">WAITING...</div>
+            <div class="slot-details">3D First-Person • Flashlight • Blind to Map • Corrupted Audio</div>
+          </div>
+        </div>
+
+        <!-- Launch Controls -->
+        <div class="staging-controls">
+          <div id="stagingMessage" class="staging-msg">
+            WAITING FOR SECOND OPERATOR TO CONNECT...
+          </div>
+          <button id="btnLaunchMission" class="btn-launch disabled" disabled>
+            ENTER MISSION FACILITY
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="lobby-footer">
+      <span>DEAD AIR // AUTHORITATIVE NODE.JS + SOCKET.IO PROTOCOL</span>
+      <span>SERVER-SIDE MESSAGE CORRUPTION ENGINE ACTIVE</span>
+    </footer>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/shared.js"></script>
+  <script>
+    (function () {
+      const socket = io();
+      let currentRoomCode = window.getRoomCodeFromURL();
+      let currentRole = null;
+      let roomState = null;
+
+      const lobbyStatus = document.getElementById("lobbyStatus");
+      const landingView = document.getElementById("landingView");
+      const stagingView = document.getElementById("stagingView");
+      const btnCreateRoom = document.getElementById("btnCreateRoom");
+      const joinRoomForm = document.getElementById("joinRoomForm");
+      const roomCodeInput = document.getElementById("roomCodeInput");
+      const activeRoomCode = document.getElementById("activeRoomCode");
+      const btnCopyInvite = document.getElementById("btnCopyInvite");
+      const inviteAlert = document.getElementById("inviteAlert");
+      const dispatcherStatus = document.getElementById("dispatcherStatus");
+      const fieldStatus = document.getElementById("fieldStatus");
+      const btnSwapRoles = document.getElementById("btnSwapRoles");
+      const btnLaunchMission = document.getElementById("btnLaunchMission");
+      const stagingMessage = document.getElementById("stagingMessage");
+
+      socket.on("connect", () => {
+        lobbyStatus.textContent = "COMM LINK ESTABLISHED (ONLINE)";
+        lobbyStatus.style.color = "#4ade80";
+
+        // Auto-join if room code in URL
+        if (currentRoomCode) {
+          roomCodeInput.value = currentRoomCode;
+          joinRoom(currentRoomCode);
+        }
+      });
+
+      socket.on("disconnect", () => {
+        lobbyStatus.textContent = "COMM LINK LOST (OFFLINE)";
+        lobbyStatus.style.color = "#ef4444";
+      });
+
+      // Create Room
+      btnCreateRoom.onclick = () => {
+        window.SoundFX.playMicClick();
+        socket.emit("create_room", (res) => {
+          if (res && res.success) {
+            currentRoomCode = res.roomCode;
+            currentRole = res.role;
+            window.setRoomCodeInURL(currentRoomCode);
+            showStagingView(currentRoomCode);
+          }
+        });
+      };
+
+      // Join Room
+      joinRoomForm.onsubmit = (e) => {
+        e.preventDefault();
+        const code = roomCodeInput.value.trim().toUpperCase();
+        if (code.length === 4) {
+          joinRoom(code);
+        } else {
+          alert("Please enter a valid 4-letter room code.");
+        }
+      };
+
+      function joinRoom(code) {
+        window.SoundFX.playMicClick();
+        socket.emit("join_room", { roomCode: code }, (res) => {
+          if (res.success) {
+            currentRoomCode = res.roomCode;
+            currentRole = res.role;
+            window.setRoomCodeInURL(currentRoomCode);
+            showStagingView(currentRoomCode);
+          } else {
+            alert(res.error || "Failed to join room.");
+          }
+        });
+      }
+
+      function showStagingView(code) {
+        landingView.classList.add("hidden");
+        stagingView.classList.remove("hidden");
+        activeRoomCode.textContent = code;
+      }
+
+      // Copy Invite Link
+      btnCopyInvite.onclick = () => {
+        window.SoundFX.playMicClick();
+        const inviteURL = `${window.location.origin}/?room=${currentRoomCode}`;
+        navigator.clipboard.writeText(inviteURL).then(() => {
+          inviteAlert.style.display = "block";
+          setTimeout(() => {
+            inviteAlert.style.display = "none";
+          }, 3000);
+        });
+      };
+
+      // Swap Roles
+      btnSwapRoles.onclick = () => {
+        window.SoundFX.playMicClick();
+        socket.emit("swap_roles");
+      };
+
+      socket.on("role_assigned", ({ role }) => {
+        currentRole = role;
+        window.SoundFX.playMicClick();
+      });
+
+      // Room State Updates
+      socket.on("room_state", (state) => {
+        roomState = state;
+
+        dispatcherStatus.textContent = state.hasDispatcher ? "LINKED (OPERATOR CONNECTED)" : "WAITING FOR OPERATOR...";
+        dispatcherStatus.style.color = state.hasDispatcher ? "#4ade80" : "#fca5a5";
+
+        fieldStatus.textContent = state.hasField ? "LINKED (OPERATOR CONNECTED)" : "WAITING FOR OPERATOR...";
+        fieldStatus.style.color = state.hasField ? "#4ade80" : "#fca5a5";
+
+        if (state.hasDispatcher && state.hasField) {
+          btnLaunchMission.classList.remove("disabled");
+          btnLaunchMission.disabled = false;
+          stagingMessage.textContent = "BOTH OPERATORS LINKED. READY TO ENTER FACILITY.";
+          stagingMessage.style.color = "#4ade80";
+        } else {
+          btnLaunchMission.classList.add("disabled");
+          btnLaunchMission.disabled = true;
+          stagingMessage.textContent = "WAITING FOR SECOND OPERATOR TO CONNECT...";
+          stagingMessage.style.color = "#fef08a";
+        }
+      });
+
+      // Launch Mission Protocol
+      btnLaunchMission.onclick = () => {
+        window.SoundFX.playMicClick();
+        socket.emit("request_launch");
+      };
+
+      // Navigate to respective operational terminal
+      socket.on("navigate_to_game", ({ dispatcherUrl, fieldUrl }) => {
+        window.SoundFX.playTerminalSuccess();
+        setTimeout(() => {
+          window.location.href = currentRole === "DISPATCHER" ? dispatcherUrl : fieldUrl;
+        }, 200);
+      });
+
+      // Direct mission start fallback
+      socket.on("mission_started", (packet) => {
+        window.SoundFX.playTerminalSuccess();
+        const role = packet.role || currentRole;
+        setTimeout(() => {
+          if (role === "DISPATCHER") {
+            window.location.href = `/dispatch.html?room=${currentRoomCode}`;
+          } else {
+            window.location.href = `/field.html?room=${currentRoomCode}`;
+          }
+        }, 200);
+      });
+    })();
+  </script>
+</body>
+</html>

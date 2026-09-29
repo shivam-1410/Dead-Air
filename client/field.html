@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DEAD AIR // FIELD AGENT HUD</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+  <!-- Three.js from unpkg CDN -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+</head>
+<body class="field-body">
+  <!-- 3D Canvas Container -->
+  <div id="canvasContainer" class="canvas-3d-wrapper"></div>
+
+  <!-- Visor Overlays & Realistic Suffering Blood Splatter -->
+  <div class="visor-vignette"></div>
+  <div class="visor-scanlines"></div>
+  <div class="visor-hud-frame"></div>
+  <div id="damageOverlay" class="damage-overlay hidden"></div>
+  <div id="bloodSplatterVignette" class="blood-vignette hidden"></div>
+
+  <!-- Center Combat Reticle & Hitmarker -->
+  <div id="crosshair" class="reticle">
+    <div class="reticle-dot"></div>
+    <div class="reticle-circle"></div>
+    <div id="hitmarker" class="hitmarker hidden"></div>
+  </div>
+
+  <!-- Dynamic Interaction Prompt ([E] Override Terminal / Acquire Keycard) -->
+  <div id="interactPrompt" class="interact-prompt hidden">
+    <span class="key-box">E</span>
+    <span id="promptText" class="prompt-text">INTERACT</span>
+  </div>
+
+  <!-- Hazard Proximity Warning (Screen edge red pulse) -->
+  <div id="hazardWarningVignette" class="hazard-vignette hidden"></div>
+
+  <!-- TOP-LEFT: Radio Transmission Receiver Overlay (Corrupted Audio-Visual Stream) -->
+  <div id="radioReceiverOverlay" class="radio-receiver-box">
+    <div class="radio-header">
+      <span class="radio-indicator live-pulse"></span>
+      <span class="radio-title">TACTICAL RADIO COMM-LINK // FREQ 142.80 MHz</span>
+    </div>
+    <div id="radioStatusLine" class="radio-status">STANDBY // LISTENING FOR DISPATCH DIRECTIVES</div>
+    <div id="radioMessageContent" class="radio-message-body hidden">
+      <span class="speaker-tag">[DISPATCH]:</span>
+      <span id="radioIncomingText" class="radio-text">--</span>
+    </div>
+    <div id="carrierWaveBar" class="carrier-wave-bar hidden">
+      <div class="carrier-progress"></div>
+    </div>
+  </div>
+
+  <!-- TOP-RIGHT: Tactical Vitals (Authoritative Health Bar, Heart Rate & Life Support) -->
+  <div class="field-top-right">
+    <!-- Life Support Timer -->
+    <div class="field-timer-box">
+      <span class="field-hud-label">LIFE SUPPORT O2</span>
+      <span id="fieldTimer" class="field-hud-value">03:00</span>
+    </div>
+
+    <!-- Health & Vitals Bar -->
+    <div class="field-vitals-box">
+      <div class="vitals-header">
+        <span class="vitals-label">VITAL INTEGRITY</span>
+        <span id="healthNum" class="vitals-num">100%</span>
+      </div>
+      <div class="vitals-bar-track">
+        <div id="healthBarFill" class="vitals-bar-fill fill-healthy" style="width: 100%;"></div>
+      </div>
+      <div class="vitals-footer">
+        <span class="ecg-pulse">♥ <span id="heartRateNum">75</span> BPM</span>
+        <span id="hazardWarningBadge" class="hazard-badge-live hidden">HAZARD EXPOSURE</span>
+      </div>
+    </div>
+
+    <!-- Keycard Clearance Badge -->
+    <div class="keycard-box">
+      <span class="keycard-label">SECURITY CLEARANCE</span>
+      <div id="keycardStatus" class="keycard-status locked">
+        <span class="key-icon">🔒</span> ACCESS LEVEL 0 (NO KEY)
+      </div>
+    </div>
+
+    <!-- Flashlight & UV Spectral Mode Badge -->
+    <div class="flashlight-mode-box">
+      <span class="hud-sub-label">OPTICAL ILLUMINATION [F]</span>
+      <div id="flashlightBadge" class="flashlight-badge mode-standard">
+        <span class="mode-icon">🔦</span> <span id="flashlightModeText">STANDARD BEAM</span>
+      </div>
+    </div>
+
+    <!-- Acoustic Echolocation Sonar Box -->
+    <div class="sonar-box">
+      <div class="sonar-header">
+        <span class="hud-sub-label">ACOUSTIC SONAR [Q]</span>
+        <span id="sonarCooldownText" class="sonar-ready">READY</span>
+      </div>
+      <div id="sonarReport" class="sonar-report hidden">BIO-SIGNATURES: NONE</div>
+    </div>
+  </div>
+
+  <!-- BOTTOM-RIGHT: Tactical Weapon & Ammo Status -->
+  <div class="weapon-hud-box">
+    <div class="weapon-header">
+      <span class="weapon-name">COMBAT SIDEARM</span>
+      <span id="reloadPrompt" class="reload-indicator hidden">[R] RELOAD</span>
+    </div>
+    <div class="ammo-readout">
+      <span id="clipAmmo" class="ammo-clip">12</span>
+      <span class="ammo-sep">/</span>
+      <span id="reserveAmmo" class="ammo-reserve">48</span>
+    </div>
+    <div class="weapon-hint">LEFT-CLICK TO FIRE // [R] RELOAD</div>
+  </div>
+
+  <!-- Waypoint Beacon Toast from Dispatcher -->
+  <div id="waypointToast" class="waypoint-toast hidden">
+    <span class="waypoint-icon live-pulse">📍</span>
+    <span id="waypointToastText">WAYPOINT BEACON TRANSMITTED FROM DISPATCH</span>
+  </div>
+
+  <!-- Interactive Two-Way Field Comms Console ([T] to open) -->
+  <div id="fieldCommsConsole" class="field-comms-console hidden">
+    <div class="comms-header">
+      <span class="comms-indicator live-pulse"></span>
+      <span>FIELD TRANSMITTER FREQ 142.80 MHz // PRESS [ENTER] TO SEND // [ESC] TO DISMISS</span>
+    </div>
+    <form id="fieldCommsForm" class="comms-form">
+      <input
+        id="fieldCommsInput"
+        type="text"
+        placeholder="TYPE VOICE CALLOUT TO DISPATCH (SUBJECT TO CORRUPTION)..."
+        maxlength="100"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button type="submit" id="btnSendComms" class="btn-comms-send">TRANSMIT [ENTER]</button>
+    </form>
+  </div>
+
+  <!-- BOTTOM: Push-To-Talk Tactical Callout Bar -->
+  <div class="ptt-container">
+    <div class="ptt-title">PUSH-TO-TALK CALLOUTS [PRESS 1 - 6 OR [T] FOR CUSTOM RADIO]</div>
+    <div class="ptt-buttons-grid">
+      <button type="button" class="btn-ptt" data-callout="Copy that, proceeding.">
+        <span class="ptt-key">[1]</span> COPY THAT
+      </button>
+      <button type="button" class="btn-ptt" data-callout="Say again, signal broke up.">
+        <span class="ptt-key">[2]</span> SAY AGAIN
+      </button>
+      <button type="button" class="btn-ptt" data-callout="At room doorway threshold.">
+        <span class="ptt-key">[3]</span> AT THRESHOLD
+      </button>
+      <button type="button" class="btn-ptt" data-callout="HAZARD SIGHTED! Taking heat!">
+        <span class="ptt-key">[4]</span> ⚠ HAZARD SIGHTED
+      </button>
+      <button type="button" class="btn-ptt" data-callout="Objective terminal located!">
+        <span class="ptt-key">[5]</span> ★ TERMINAL SIGHTED
+      </button>
+      <button type="button" class="btn-ptt" data-callout="Lost in corridors. Need heading.">
+        <span class="ptt-key">[6]</span> NEED HEADING
+      </button>
+    </div>
+    <div id="pttStatusIndicator" class="ptt-status-text">TRANSMITTER READY // PRESS [T] TO TYPE CUSTOM RADIO CALLOUT</div>
+  </div>
+
+  <!-- Click to Enter / Pointer Lock Blocker -->
+  <div id="blocker" class="pointerlock-blocker">
+    <div class="instructions-card">
+      <h1 class="game-title">DEAD AIR</h1>
+      <h2 class="role-title">ROLE: FIELD AGENT</h2>
+      <div class="instructions-body">
+        <p>You are blind inside the contaminated sub-level facility.</p>
+        <p>You have <strong>NO MAP</strong>, <strong>NO OBJECTIVE MARKERS</strong>, and <strong>NO COORDINATES</strong>.</p>
+        <p>Your <strong>ONLY</strong> lifeline is the Dispatcher's radio voice.</p>
+        <p class="highlight-danger">WARNING: Dead zones will annihilate radio reception. Roaming zombies will attack on sight.</p>
+        <div class="controls-list">
+          <div><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> — Move</div>
+          <div><kbd>MOUSE</kbd> — Look & Aim</div>
+          <div><kbd>LEFT-CLICK</kbd> — Fire Sidearm</div>
+          <div><kbd>R</kbd> — Reload Weapon</div>
+          <div><kbd>SHIFT</kbd> — Sprint</div>
+          <div><kbd>E</kbd> — Interact / Scavenge Supplies / Override Terminal</div>
+          <div><kbd>F</kbd> — Toggle Flashlight & UV Blacklight Mode</div>
+          <div><kbd>Q</kbd> — Acoustic Sonar Pulse (Detect nearby hostiles)</div>
+          <div><kbd>T</kbd> — Open Custom Radio Transmitter to Dispatch</div>
+          <div><kbd>1</kbd> - <kbd>6</kbd> — Quick Push-To-Talk Callouts</div>
+        </div>
+      </div>
+      <button id="btnClickToEngage" class="btn-engage">CLICK TO ENTER FACILITY</button>
+    </div>
+  </div>
+
+  <!-- Debrief Modal Overlay -->
+  <div id="debriefModal" class="modal-backdrop hidden">
+    <div class="modal-window">
+      <div class="modal-header" id="debriefHeader">MISSION TERMINATION</div>
+      <div class="modal-body">
+        <div id="debriefStatus" class="debrief-status">OPERATION TERMINATED</div>
+        <div id="debriefReason" class="debrief-reason">Reason details...</div>
+        <div class="debrief-stats">
+          <div class="stat-row">
+            <span>MISSION DURATION:</span>
+            <strong id="debriefDuration">--:--</strong>
+          </div>
+          <div class="stat-row">
+            <span>TERMINAL TARGET:</span>
+            <strong id="debriefObjective">UNKNOWN</strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnRestartMission" class="btn-terminal-lg">RE-ENGAGE MISSION</button>
+        <a href="/" class="btn-terminal-secondary">EXIT TO LOBBY</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Socket.io, shared utils, level data, and client script -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/server/level.js"></script>
+  <script src="/shared.js"></script>
+  <script src="/field.js"></script>
+</body>
+</html>

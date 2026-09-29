@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DEAD AIR // DISPATCHER TERMINAL</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+</head>
+<body class="crt-screen dispatch-body">
+  <div class="crt-scanlines"></div>
+  <div class="crt-vignette"></div>
+
+  <!-- Top Tactical Header -->
+  <header class="tactical-header">
+    <div class="header-left">
+      <span class="status-indicator live-pulse"></span>
+      <span class="facility-title">FACILITY ECHO // DISPATCH CONSOLE 01</span>
+      <span class="room-badge">ROOM: <strong id="roomCodeDisplay">----</strong></span>
+    </div>
+    <div class="header-center">
+      <div class="timer-box">
+        <span class="timer-label">MISSION COUNTDOWN</span>
+        <span id="missionTimer" class="timer-value">03:00</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <span id="connectionBadge" class="badge badge-warn">CONNECTING...</span>
+      <a href="/" class="btn-terminal-sm">EXIT TO LOBBY</a>
+    </div>
+  </header>
+
+  <!-- Main Grid Layout -->
+  <main class="dispatch-layout">
+    <!-- Left: Radar Map Viewport -->
+    <section class="radar-container">
+      <div class="panel-header">
+        <span class="panel-title">TOP-DOWN TACTICAL RADAR SCHEMATIC</span>
+        <span class="panel-sub" id="sectorReadout">AGENT SECTOR: UNKNOWN</span>
+      </div>
+      <div class="canvas-wrapper">
+        <canvas id="radarCanvas"></canvas>
+        <div id="radarOverlayStatus" class="radar-overlay">WAITING FOR FIELD AGENT DEPLOYMENT...</div>
+      </div>
+      <div class="radar-legend">
+        <span class="legend-item"><span class="legend-dot agent-dot"></span> FIELD AGENT</span>
+        <span class="legend-item"><span class="legend-dot zombie-dot"></span> HOSTILE ZOMBIE</span>
+        <span class="legend-item"><span class="legend-dot lava-dot"></span> LAVA BED</span>
+        <span class="legend-item"><span class="legend-dot key-dot"></span> KEYCARD</span>
+        <span class="legend-item"><span class="legend-dot gate-dot"></span> BLAST DOOR</span>
+        <span class="legend-item"><span class="legend-dot obj-dot"></span> TARGET TERMINAL</span>
+      </div>
+    </section>
+
+    <!-- Right: Communications & Signal Telemetry Console -->
+    <aside class="comms-panel">
+      <!-- Agent Vitals & Bio-Telemetry Widget -->
+      <div class="telemetry-box vitals-telemetry-box">
+        <div class="box-title">
+          <span>OPERATOR BIOMETRICS & VITALS</span>
+          <span id="agentHeartRateBadge" class="ecg-badge">♥ 75 BPM</span>
+        </div>
+        <div class="agent-health-wrapper">
+          <div class="signal-header">
+            <span class="signal-label">HEALTH INTEGRITY</span>
+            <span id="agentHealthNum" class="signal-percent">100%</span>
+          </div>
+          <div class="signal-bar-track">
+            <div id="agentHealthBarFill" class="signal-bar-fill fill-nominal" style="width: 100%;"></div>
+          </div>
+        </div>
+        <div class="telemetry-mini-grid">
+          <div class="mini-stat">
+            <span class="mini-label">KEYCARD ACCESS</span>
+            <span id="keycardReadout" class="mini-val text-amber">SEARCHING WINGS...</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-label">BIO-THREAT TRACKER</span>
+            <span id="zombieTrackerReadout" class="mini-val text-red">5 HOSTILES ACTIVE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Signal Telemetry Widget -->
+      <div class="telemetry-box">
+        <div class="box-title">CARRIER WAVE TELEMETRY</div>
+        <div class="signal-gauge-wrapper">
+          <div class="signal-header">
+            <span class="signal-label">SIGNAL INTEGRITY</span>
+            <span id="signalValueText" class="signal-percent">--%</span>
+          </div>
+          <div class="signal-bar-track">
+            <div id="signalBarFill" class="signal-bar-fill" style="width: 50%;"></div>
+          </div>
+          <div class="signal-scale">
+            <span>0% CRITICAL</span>
+            <span>50% DEGRADED</span>
+            <span>100% NOMINAL</span>
+          </div>
+          <div id="signalWarningNotice" class="signal-notice">
+            AWAITING TELEMETRY...
+          </div>
+        </div>
+
+        <div class="telemetry-mini-grid">
+          <div class="mini-stat">
+            <span class="mini-label">LATENCY OFFSET</span>
+            <span id="estLatencyText" class="mini-val">~2.5s</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-label">CORRUPTION RISK</span>
+            <span id="corruptionRiskText" class="mini-val">MODERATE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tactical Directive Transmitter -->
+      <div class="transmitter-box">
+        <div class="box-title">DIRECTIVE TRANSMITTER [RADIO TX]</div>
+        <form id="txForm" class="tx-form">
+          <div class="input-row">
+            <input
+              type="text"
+              id="txInput"
+              class="terminal-input"
+              placeholder="ENTER DIRECTIVE... (e.g. 'Zombie behind you! Turn left to avoid lava')"
+              maxlength="160"
+              autocomplete="off"
+            />
+            <button type="submit" id="txButton" class="btn-transmit">
+              <span class="btn-text">TRANSMIT</span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Quick Directive Macro Buttons -->
+        <div class="macro-buttons">
+          <button type="button" class="btn-macro" data-macro="TURN AROUND! Infected zombie closing in behind you! Use gun!">⚠ ZOMBIE BEHIND YOU!</button>
+          <button type="button" class="btn-macro" data-macro="STOP! Molten lava trench immediately ahead! Do not step forward!">🌋 LAVA TRENCH - STOP!</button>
+          <button type="button" class="btn-macro" data-macro="Security keycard is in this room! Find glowing card and press E!">🔑 KEYCARD IN THIS ROOM</button>
+          <button type="button" class="btn-macro" data-macro="Blast door unlocked! Proceed straight to terminal chamber!">🔓 BLAST DOOR UNLOCKED</button>
+          <button type="button" class="btn-macro" data-macro="Turn left down the corridor">← TURN LEFT</button>
+          <button type="button" class="btn-macro" data-macro="Turn right down the corridor">TURN RIGHT →</button>
+          <button type="button" class="btn-macro" data-macro="Target terminal located in this room! Press E to override!">★ TARGET IN ROOM</button>
+          <button type="button" class="btn-macro" data-macro="Entering dead zone! High static and radio loss imminent!">⚡ DEAD ZONE AHEAD</button>
+        </div>
+      </div>
+
+      <!-- Radio Communications Log -->
+      <div class="comms-log-box">
+        <div class="box-title">
+          <span>INTERCOM LOG [CLEAN TX / CORRUPTED RX]</span>
+          <span class="log-tip">You cannot see what Agent heard</span>
+        </div>
+        <div id="commsLog" class="comms-log-feed">
+          <div class="log-entry system-entry">
+            <span class="log-time">[00:00]</span> [SYSTEM] Surveillance link initialized. Standby for field deployment.
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Debrief Modal Overlay -->
+  <div id="debriefModal" class="modal-backdrop hidden">
+    <div class="modal-window">
+      <div class="modal-header" id="debriefHeader">MISSION DEBRIEF</div>
+      <div class="modal-body">
+        <div id="debriefStatus" class="debrief-status">OPERATION TERMINATED</div>
+        <div id="debriefReason" class="debrief-reason">Reason details...</div>
+        <div class="debrief-stats">
+          <div class="stat-row">
+            <span>MISSION DURATION:</span>
+            <strong id="debriefDuration">--:--</strong>
+          </div>
+          <div class="stat-row">
+            <span>TARGET DIRECTIVE:</span>
+            <strong id="debriefObjective">UNKNOWN</strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnRestartMission" class="btn-terminal-lg">RE-ENGAGE MISSION</button>
+        <a href="/" class="btn-terminal-secondary">EXIT TO LOBBY</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Socket.io, shared utils, level data, and client script -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/server/level.js"></script>
+  <script src="/shared.js"></script>
+  <script src="/dispatch.js"></script>
+</body>
+</html>
